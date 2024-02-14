@@ -1,0 +1,14 @@
+Bootstrap: docker
+From: alpine:latest
+
+%files
+
+    unpriv_nginx.conf /etc/nginx/nginx.conf
+    index.html /www/index.html
+
+%post
+    apk update
+    apk add nginx
+
+%startscript
+    nginx

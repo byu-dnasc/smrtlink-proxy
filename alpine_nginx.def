@@ -11,8 +11,9 @@ From: alpine:latest
     apk add nginx
 
     # using /tmp will work, but this is better, although it assumes smrtlink-proxy is installed in /home/<username>/smrtlink-proxy
-    sed -i 's/\/tmp/\/home\/{{ user }}\/smrtlink-proxy\/nginx/' /etc/nginx/nginx.conf
+    ESCAPED_NGINX_PREFIX=$(echo "{{ nginx_prefix }}" | awk '{gsub(/\//,"\\\/"); print}')
+    sed -i "s/\/tmp/$ESCAPED_NGINX_PREFIX/" /etc/nginx/nginx.conf
     
 %startscript
     # p option is to help nginx find the log created in the post section
-    nginx -p /home/{{ user }}/smrtlink-proxy/nginx/ -c /etc/nginx/nginx.conf
+    nginx -p {{ nginx_prefix }} -c /etc/nginx/nginx.conf

@@ -1,1 +1,5 @@
 *.sif
+*.log
+client_body
+*_temp
+*.pid

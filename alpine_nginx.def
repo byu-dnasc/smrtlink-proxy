@@ -3,15 +3,18 @@ From: alpine:latest
 
 %files
 
-    unpriv_nginx.conf /etc/nginx/nginx.conf
+    nginx/config/unprivileged.conf /etc/nginx/nginx.conf
     index.html /www/index.html
+
+%environment
+
+    export SMRT_ROOT={{ smrt_root }}
 
 %post
     apk update
     apk add nginx
 
-    # using /tmp will work, but this is better, although it assumes smrtlink-proxy is installed in /home/<username>/smrtlink-proxy
-    ESCAPED_NGINX_PREFIX=$(echo "{{ nginx_prefix }}" | awk '{gsub(/\//,"\\\/"); print}')
+    ESCAPED_NGINX_PREFIX=$(echo "{{ nginx_prefix }}" | awk '{gsub(/\//,"\\\/"); print}') # parameter expansion would be easier, but bash not available in alpine
     sed -i "s/\/tmp/$ESCAPED_NGINX_PREFIX/" /etc/nginx/nginx.conf
     
 %startscript

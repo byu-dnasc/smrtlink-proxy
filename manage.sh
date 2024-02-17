@@ -1,10 +1,12 @@
 NGINX_PREFIX="/home/$USER/smrtlink-proxy/nginx"
+SMRT_ROOT="/home/$USER/smrtlink-container/smrtlink"
 
 build() {
     singularity build \
         --fakeroot \
         --force \
         --build-arg nginx_prefix=$NGINX_PREFIX \
+        --build-arg smrt_root=$SMRT_ROOT \
         alpine_nginx.sif alpine_nginx.def
 }
 
@@ -18,25 +20,30 @@ stop() {
     singularity instance stop proxy
 }
 
-container() { singularity instance list | grep -q proxy; }
+container() { singularity instance list | awk 'NR>1 {print $1}' | grep -q proxy; }
 web() { curl -s -o /dev/null localhost:8088; }
+http() { curl -s -k http://localhost:9092/status > /dev/null; }
+https() { curl -s -k https://localhost:8244/SMRTLink/1.0.0/status > /dev/null; }
 
 shell() {
     ! container && echo "The container is not running." && return 1
     singularity shell instance://proxy
 }
 
-swap_config() {
-    [ -z $1 ] && echo "Usage: set_config <path_to_config>" && return 1
-    [ ! -f $1 ] && echo "File not found: $1. File must be in your home directory, or else built into the container." && return
-    # Test the configuration
+reload() {
+    ! container && echo "The container is not running." && return 1
     singularity exec instance://proxy \
-        nginx -p $NGINX_PREFIX -t -c $1
-    # If the test is successful, set the configuration
-    if [ $? -eq 0 ]; then
-        singularity exec instance://proxy \
-            nginx -p $NGINX_PREFIX -c $1
-    else
-        echo "Nginx configuration test failed"
-    fi
+        nginx -p $NGINX_PREFIX -s reload
+}
+
+config() {
+    ! container && echo "The container is not running." && return 1
+    singularity exec instance://proxy \
+        nginx -p $NGINX_PREFIX -T
+}
+
+test_config() {
+    ! container && echo "The container is not running." && return 1
+    singularity exec instance://proxy \
+        nginx -p $NGINX_PREFIX -t
 }

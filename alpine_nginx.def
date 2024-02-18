@@ -3,20 +3,21 @@ From: alpine:latest
 
 %files
 
-    nginx/config/unprivileged.conf /etc/nginx/nginx.conf
-    index.html /www/index.html
+    unprivileged_template
+    proxy_template
 
 %environment
 
-    export SMRT_ROOT={{ smrt_root }}
+    export NGINX_CMD="{{ nginx_cmd }}"
 
 %post
+
     apk update
     apk add nginx
 
-    ESCAPED_NGINX_PREFIX=$(echo "{{ nginx_prefix }}" | awk '{gsub(/\//,"\\\/"); print}') # parameter expansion would be easier, but bash not available in alpine
-    sed -i "s/\/tmp/$ESCAPED_NGINX_PREFIX/" /etc/nginx/nginx.conf
-    
+    sed "s|REPO_ROOT|{{ repo_root }}|g" /unprivileged_template > /etc/nginx/unprivileged.conf 
+    sed "s|SMRT_ROOT|{{ smrt_root }}|g" /proxy_template > /etc/nginx/proxy.conf
+
 %startscript
-    # p option is to help nginx find the log created in the post section
-    nginx -p {{ nginx_prefix }} -c /etc/nginx/nginx.conf
+
+    eval $NGINX_CMD

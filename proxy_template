@@ -1,8 +1,8 @@
 server {
     listen 8244 ssl; # this is the secure, authenticated SMRT Link API gateway
 
-    $SMRT_ROOT/userdata/config/security/pb-smrtlink-default.crt
-    $SMRT_ROOT/userdata/config/security/pb-smrtlink-default.key
+    ssl_certificate SMRT_ROOT/userdata/config/security/pb-smrtlink-default.crt;
+    ssl_certificate_key SMRT_ROOT/userdata/config/security/pb-smrtlink-default.key;
 
     location / {
         proxy_pass https://localhost:8243;

@@ -1,0 +1,34 @@
+error_log REPO_ROOT/nginx/error.log;
+pid       REPO_ROOT/nginx/nginx.pid;
+
+events {
+    # No special events for this simple setup
+}
+http {
+
+    # Set a number of log, temp and cache file options that will otherwise
+    # default to restricted locations accessible only to root.
+    # probably don't need all these
+    access_log REPO_ROOT/nginx/nginx_host.access.log;
+    client_body_temp_path REPO_ROOT/nginx/client_body;
+    fastcgi_temp_path REPO_ROOT/nginx/fastcgi_temp;
+    proxy_temp_path REPO_ROOT/nginx/proxy_temp;
+    scgi_temp_path REPO_ROOT/nginx/scgi_temp;
+    uwsgi_temp_path REPO_ROOT/nginx/uwsgi_temp;
+
+    # proxy server
+    include /etc/nginx/proxy.conf;
+
+    # sanity check server
+    server {
+        listen 8088;
+        server_name localhost;
+
+        # Serve local files
+        location / {
+            root REPO_ROOT;
+            index index.html index.htm;
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}

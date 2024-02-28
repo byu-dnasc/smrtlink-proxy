@@ -3,5 +3,4 @@
 client_body
 *_temp
 *.pid
-*.conf
 *.pyc

@@ -3,8 +3,8 @@ From: alpine:latest
 
 %files
 
-    unprivileged_template
-    proxy_template
+    /tmp/unprivileged.conf /etc/nginx/unprivileged.conf
+    /tmp/proxy.conf /etc/nginx/proxy.conf
 
 %environment
 
@@ -14,9 +14,6 @@ From: alpine:latest
 
     apk update
     apk add nginx
-
-    sed "s|REPO_ROOT|{{ repo_root }}|g" /unprivileged_template > /etc/nginx/unprivileged.conf 
-    sed "s|SMRT_ROOT|{{ smrt_root }}|g" /proxy_template > /etc/nginx/proxy.conf
 
 %startscript
 

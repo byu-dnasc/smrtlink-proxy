@@ -17,7 +17,7 @@ http {
     uwsgi_temp_path REPO_ROOT/nginx/uwsgi_temp;
 
     # proxy server
-    include /etc/nginx/proxy.conf;
+    include PROXY_CONF;
 
     # sanity check server
     server {

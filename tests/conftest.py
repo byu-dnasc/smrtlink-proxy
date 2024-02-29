@@ -47,7 +47,7 @@ def sl_log():
     yield SLRequestHandler.log
     SLRequestHandler.log.clear()
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def sl_server():
     server = StoppableHTTPServer(('localhost', 9091), SLRequestHandler)
     server_thread = threading.Thread(target=server.run)
@@ -56,7 +56,7 @@ def sl_server():
     server.stop()
     server_thread.join()
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def app_server():
     app = StoppableHTTPServer(('localhost', 9093), AppRequestHandler)
     app_thread = threading.Thread(target=app.run)

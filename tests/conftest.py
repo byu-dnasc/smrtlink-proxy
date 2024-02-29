@@ -2,11 +2,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 import pytest
 
-log_list = [] # shared state cleared by fixture after each test
-
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-
-    log = log_list
 
     def _log_request(self):
         body = None
@@ -27,6 +23,12 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(b'Hello, world!')
         self._log_request()
 
+class AppRequestHandler(SimpleHTTPRequestHandler):
+    log = []
+
+class SLRequestHandler(SimpleHTTPRequestHandler):
+    log = []
+
 class StoppableHTTPServer(HTTPServer):
 
     def run(self):
@@ -36,19 +38,29 @@ class StoppableHTTPServer(HTTPServer):
         self.shutdown()
 
 @pytest.fixture(autouse=True)
-def server_port():
-    return 8000
+def app_log():
+    yield AppRequestHandler.log
+    AppRequestHandler.log.clear()
 
 @pytest.fixture(autouse=True)
-def log():
-    yield log_list
-    log_list.clear()
+def sl_log():
+    yield SLRequestHandler.log
+    SLRequestHandler.log.clear()
 
 @pytest.fixture(autouse=True)
-def http_server(server_port):
-    server = StoppableHTTPServer(('localhost', server_port), SimpleHTTPRequestHandler)
+def sl_server():
+    server = StoppableHTTPServer(('localhost', 9091), SLRequestHandler)
     server_thread = threading.Thread(target=server.run)
     server_thread.start()
     yield
     server.stop()
     server_thread.join()
+
+@pytest.fixture(autouse=True)
+def app_server():
+    app = StoppableHTTPServer(('localhost', 9093), AppRequestHandler)
+    app_thread = threading.Thread(target=app.run)
+    app_thread.start()
+    yield
+    app.stop()
+    app_thread.join()

@@ -1,39 +1,5 @@
 import pytest
-import http.client
-import socket
-
-class Response:
-    def __init__(self, status, body):
-        self.status = status
-        self.body = body
-
-def get_response(response):
-    if not response:
-        return None
-    status = response.status
-    body = response.read()
-    if body:
-        return Response(status, body.decode('utf-8'))
-    else:
-        return Response(status, None)
-
-def do_request(port, method="GET", path="/"):
-    try:
-        conn = http.client.HTTPConnection("localhost", port, timeout=2)
-        try:
-            conn.request(method, path)
-        except ConnectionRefusedError:
-            print("Connection refused, i.e. no server (or proxy) listening on that port.")
-            return None
-        return get_response(conn.getresponse())        
-    except http.client.HTTPException:
-        print("HTTP exception occurred.")
-        return None
-    except socket.timeout:
-        print("Socket timed out.")
-        return None
-    finally:
-        conn.close()
+from tests.conftest import do_request
 
 sl_port = 9091
 sl_proxy_port = 9092

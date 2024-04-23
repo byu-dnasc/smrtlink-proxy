@@ -7,6 +7,19 @@ server {
     location / {
         proxy_pass https://localhost:8243;
     }
+
+    location /SMRTLink/2.0.0/smrt-link/projects {
+        mirror /smrtlink-share;
+        mirror_request_body on; # default, may want to turn off for simplicity?
+        proxy_pass https://localhost:8243;
+    }
+
+    location /smrtlink-share {
+        internal;
+        if ($request_method ~ ^(PUT|POST|DELETE)$) {
+            proxy_pass https://localhost:9093;
+        }
+    }
 }
 
 server {

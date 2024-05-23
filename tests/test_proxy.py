@@ -1,80 +1,78 @@
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
 import pytest
-import http.client
-import socket
+from requests import post, put, delete
+import itertools
 
-class Response:
-    def __init__(self, status, body):
-        self.status = status
-        self.body = body
+class UpstreamServer:
 
-def get_response(response):
-    if not response:
-        return None
-    status = response.status
-    body = response.read()
-    if body:
-        return Response(status, body.decode('utf-8'))
-    else:
-        return Response(status, None)
+    def _get_handler(self):
+        class RequestHandler(BaseHTTPRequestHandler):
+            def log_request(inner_self, *args, **kwargs):
+                self.request_flag = True
+                super().log_request(*args, **kwargs)
+        return RequestHandler
 
-def do_request(port, method="GET", path="/"):
-    try:
-        conn = http.client.HTTPConnection("localhost", port, timeout=2)
-        try:
-            conn.request(method, path)
-        except ConnectionRefusedError:
-            print("Connection refused, i.e. no server (or proxy) listening on that port.")
-            return None
-        return get_response(conn.getresponse())        
-    except http.client.HTTPException:
-        print("HTTP exception occurred.")
-        return None
-    except socket.timeout:
-        print("Socket timed out.")
-        return None
-    finally:
-        conn.close()
+    def __init__(self, port):
+        assert type(port) == int
+        self.request_flag = False
+        self.server = HTTPServer(('localhost', port), self._get_handler())
+        self.server_thread = threading.Thread(target=self.server.serve_forever)
+        self.server_thread.start()
+    
+    def stop(self):
+        self.server.shutdown()
+        self.server_thread.join()
 
-sl_port = 9091
-sl_proxy_port = 9092
-proxy_home_port = 8088
+    def request_logged(self):
+        '''Get and reset the request flag.'''
+        tmp = self.request_flag
+        self.request_flag = False
+        return tmp
 
-# make sure testing utilities (fixtures, etc.) are working
-@pytest.mark.usefixtures("sl_server")
-def test_testing_utilities(sl_log):
-    response = do_request(sl_port)
-    assert response, 'Something wrong with http_server fixture.'
-    assert response.status == 200
-    assert response.body, 'Response body is missing.'
-    assert len(sl_log) == 1, 'Request was not logged.'
+GATEWAY_PROXY = "https://localhost:8244"
+SERVICES_PROXY = "http://localhost:9092"
+GATEWAY_PREFIX_1 = '/SMRTLink/1.0.0'
+GATEWAY_PREFIX_2 = '/SMRTLink/2.0.0'
+API = (
+    (post, '/smrt-link/projects'),
+    (put, '/smrt-link/projects/1'),
+    (delete, '/smrt-link/projects/1'),
+    (post, '/smrt-link/job-manager/jobs/analysis')
+)
 
-# make sure smrtlink-proxy is forwarding GET requests to the sl_server fixture
-# (smrtlink-proxy must be running)
-@pytest.mark.usefixtures("sl_server")
-def test_proxy():
-    response = do_request(proxy_home_port)
-    assert response, 'Proxy server is not running.'
-    response = do_request(sl_proxy_port)
-    assert response, 'Proxy server is not forwarding requests.'
-    assert response.status == 200
-    assert response.body == 'Hello, world!'
+GATEWAY_API = itertools.chain(
+    ((method, f'{GATEWAY_PROXY}{GATEWAY_PREFIX_1}{path}') for method, path in API),
+    ((method, f'{GATEWAY_PROXY}{GATEWAY_PREFIX_2}{path}') for method, path in API)
+)
+SERVICES_API = ((method, f'{SERVICES_PROXY}{path}') for method, path in API)
 
-# request reaches both servers
-@pytest.mark.usefixtures("sl_server", "app_server")
-def test_request_mirroring(sl_log, app_log):
-    sl_response = do_request(sl_proxy_port, method="POST", path="/smrt-link/projects")
-    assert sl_response
-    assert sl_response.status == 200
-    assert sl_response.body == 'Hello, world!'
-    assert len(sl_log) == 1
-    assert len(app_log) == 1
+@pytest.fixture(scope='module')
+def app():
+    app = UpstreamServer(9093)
+    yield app
+    app.stop()
 
-# do not mirror get requests
-@pytest.mark.usefixtures("sl_server", "app_server")
-def test_request_mirroring_fail(sl_log, app_log):
-    sl_response = do_request(sl_proxy_port, method="GET", path="/smrt-link/projects")
-    assert sl_response
-    assert sl_response.status == 200
-    assert sl_response.body == 'Hello, world!'
-    assert len(sl_log) == 1
-    assert len(app_log) == 0
+@pytest.fixture(scope='module')
+def sl_gateway():
+    sl_gateway = UpstreamServer(8243)
+    yield sl_gateway
+    sl_gateway.stop()
+
+@pytest.fixture(scope='module')
+def sl_services():
+    sl_services = UpstreamServer(9091)
+    yield sl_services
+    sl_services.stop()
+   
+@pytest.mark.parametrize('request_, uri', SERVICES_API)
+def test_services_api(request_, uri, sl_services, app):
+    request_(uri)
+    assert sl_services.request_logged()
+    assert app.request_logged()
+
+@pytest.mark.parametrize('request_, uri', GATEWAY_API)
+def test_gateway_api(request_, uri, sl_gateway, app):
+    request_(uri, verify=False)
+    assert sl_gateway.request_logged()
+    assert app.request_logged()

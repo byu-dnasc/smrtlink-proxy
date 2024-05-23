@@ -8,9 +8,8 @@ server {
         proxy_pass https://localhost:8243;
     }
 
-    location /SMRTLink/2.0.0/smrt-link/projects {
+    location ~ ^/SMRTLink/([0-9]+\.[0-9]+\.[0-9]+)/smrt-link/(projects|job-manager/jobs/analysis) {
         mirror /smrtlink-share;
-        mirror_request_body on; # default, may want to turn off for simplicity?
         proxy_pass https://localhost:8243;
     }
 
@@ -29,9 +28,8 @@ server {
         proxy_pass http://localhost:9091;
     }
 
-    location /smrt-link/projects {
+    location ~ ^/smrt-link/(projects|job-manager/jobs/analysis) {
         mirror /smrtlink-share;
-        mirror_request_body on; # default, may want to turn off for simplicity?
         proxy_pass http://localhost:9091;
     }
 
